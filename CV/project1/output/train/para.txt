@@ -1,0 +1,4 @@
+threshold1=50, 
+threshold2=20,
+row_threshold = 0.2,
+col_threshold = 0.2
