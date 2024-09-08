@@ -4,6 +4,7 @@ import skimage as sk
 from skimage import io, color
 from skimage.metrics import structural_similarity as SSIM
 from skimage.transform import rescale
+import matplotlib.pyplot as plt
 import os 
 
 # some parameters
@@ -46,7 +47,6 @@ def auto_crop(image):
     # Apply edge detection (Canny edge detection)
     image_blur = cv2.GaussianBlur(grayscale_image, (5,5), 0)
     edges = cv2.Canny((image_blur * 255).astype(np.uint8), threshold1=THRESHOLD1, threshold2=THRESHOLD2)
-    cv2.imwrite("edge.png", edges)
 
     # Compute the mean of the rows and columns
     row_means = np.mean(edges / 255, axis=1)
@@ -160,7 +160,7 @@ def align(image, ref):
 
 ### Main Function ###
 def main():
-    files = ['lady.tif']
+    files = ['emir.tif']
     # for file in os.listdir('data'):
     for file in files:
         print(file)
@@ -178,6 +178,28 @@ def main():
         g = im[height: 2*height]
         r = im[2*height: 3*height]
 
+        be = sk.feature.canny(b)
+        ge = sk.feature.canny(g)
+        re = sk.feature.canny(r)
+
+        fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(12, 8))
+        ax[0][0].imshow(b, cmap='gray')
+        ax[0][0].set_title('Blue Channel')
+        ax[0][0].axis('off')    
+        ax[0][1].imshow(g, cmap='gray')
+        ax[0][1].set_title('Green Channel')
+        ax[0][1].axis('off')
+        ax[0][2].imshow(r, cmap='gray')
+        ax[0][2].set_title('Red Channel')
+        ax[0][2].axis('off')
+        ax[1][0].imshow(be, cmap='gray')
+        ax[1][0].axis('off')
+        ax[1][1].imshow(ge, cmap='gray')
+        ax[1][1].axis('off')
+        ax[1][2].imshow(re, cmap='gray')
+        ax[1][2].axis('off')
+        plt.tight_layout()
+        
         # align the imagess in the green and red channels to the blue channel
         ag = align(g, b)
         ar = align(r, b)
@@ -194,9 +216,11 @@ def main():
         if not os.path.exists("./output/" + root): 
             os.makedirs("./output/" + root) 
         fname = './output/' + root + '/' + SEARCH_METHOD + '_' + MATCHING_METRIC 
+        plt.savefig('./output/' + root + '/channels_compare.png')
         io.imsave(fname + '_origin.png', im_out)
         io.imsave(fname + '_edges.png', im_edges)
         io.imsave(fname + '_crop.png', im_crop)
+        
 
 if __name__ == "__main__":
     main()
