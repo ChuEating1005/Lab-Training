@@ -1,5 +1,4 @@
-from scipy.signal import convolve2d
-
+from scipy.signal import convolve2d, unit_impulse
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -19,7 +18,7 @@ IMAGE1 = "submarine.bmp"
 IMAGE2 = "fish.bmp"
 IMAGE3 = "apple.jpeg"
 IMAGE4 = "orange.jpeg"
-LEVELS = 5
+LEVELS = 4
 
 ### Part 2-1: Image Sharpening ###
 def gaussian_filter(img, ksize=KSIZE, sigma=SIGMA, color=False):
@@ -36,22 +35,106 @@ def gaussian_filter(img, ksize=KSIZE, sigma=SIGMA, color=False):
 
 def sharpening(img):
     img_blur = gaussian_filter(img, color=True)
-    img_detail = img - img_blur
-    img_sharpened = img + ALPHA * img_detail
-    return img_sharpened, img_detail
+    img_detail = ALPHA * (img - img_blur)
+    img_sharpened = np.clip(img + img_detail, 0, 255)
+    return img_sharpened, np.clip(img_detail, 0, 255)
+
+def unsharp_masking(img, ksize=KSIZE, sigma=SIGMA):
+    g = cv2.getGaussianKernel(ksize=ksize, sigma=sigma)
+    g_kernel = np.outer(g.T, g)
+    unsharp_mask_kernel = (1 + ALPHA) * unit_impulse((ksize,ksize), idx='mid') - ALPHA * g_kernel
+    r, g, b = cv2.split(img)
+    r_sharpened = convolve2d(r, unsharp_mask_kernel, mode='same', boundary='symm')
+    g_sharpened = convolve2d(g, unsharp_mask_kernel, mode='same', boundary='symm')
+    b_sharpened = convolve2d(b, unsharp_mask_kernel, mode='same', boundary='symm')
+    img_sharpened = np.dstack((r_sharpened, g_sharpened, b_sharpened))
+    img_sharpened = np.clip(img_sharpened, 0, 255)
+    return img_sharpened
+
+def frequency_analysis(img_origin, img_low, img_high, img_sharpened):
+    magnitude_spectrum = []
+    img = [img_origin, img_low, img_high, img_sharpened]
+    for i in range(4):
+        # Convert to grayscale if the image is in RGB
+        gray_image = cv2.cvtColor(img[i].astype(np.uint8), cv2.COLOR_BGR2GRAY)
+        
+        # Compute the 2D Fourier Transform of the image
+        f_transform = np.fft.fft2(gray_image)
+        
+        # Shift the zero frequency component to the center
+        f_shift = np.fft.fftshift(f_transform)
+    
+        # Compute the magnitude spectrum and use logarithmic scaling
+        magnitude_spectrum.append(np.log(np.abs(f_shift) + 1))  # Adding 1 to avoid log(0)
+
+    # High & Low Frequency Image Comparison
+    fig, ax = plt.subplots(2, 2, figsize=(10, 8))
+    ax[0][0].imshow(cv2.cvtColor(img[1].astype(np.uint8), cv2.COLOR_BGR2RGB))
+    ax[0][0].set_title('Spatial Domain', fontsize=18)
+    ax[0][0].axis('off')
+    ax[0][1].imshow(magnitude_spectrum[1], cmap='hot')
+    ax[0][1].set_title('Frequency Domain', fontsize=18)
+    ax[0][1].axis('off')
+    ax[1][0].imshow(cv2.cvtColor(img[2].astype(np.uint8), cv2.COLOR_BGR2RGB))
+    ax[1][0].axis('off')
+    ax[1][1].imshow(magnitude_spectrum[2], cmap='hot')
+    ax[1][1].axis('off')
+    fig.text(0.02, 0.75, 'Low Frequency', va='center', rotation='vertical', fontsize=18)
+    fig.text(0.02, 0.25, 'High Frequency', va='center', rotation='vertical', fontsize=18)
+    fig.tight_layout()
+    plt.savefig("./output/part2/2-1/frequency_analysis1.png")
+
+    # Original & Sharpened Image Comparison
+    fig, ax = plt.subplots(2, 2, figsize=(10, 8))
+    ax[0][0].imshow(cv2.cvtColor(img[0].astype(np.uint8), cv2.COLOR_BGR2RGB))
+    ax[0][0].set_title('Spatial Domain', fontsize=18)
+    ax[0][0].axis('off')
+    ax[0][1].imshow(magnitude_spectrum[0], cmap='hot')
+    ax[0][1].set_title('Frequency Domain', fontsize=18)
+    ax[0][1].axis('off')
+    ax[1][0].imshow(cv2.cvtColor(img[3].astype(np.uint8), cv2.COLOR_BGR2RGB))
+    ax[1][0].axis('off')
+    ax[1][1].imshow(magnitude_spectrum[3], cmap='hot')
+    ax[1][1].axis('off')
+    fig.text(0.02, 0.75, 'Original', va='center', rotation='vertical', fontsize=18)
+    fig.text(0.02, 0.25, 'Sharpened', va='center', rotation='vertical', fontsize=18)
+    fig.tight_layout()
+    plt.savefig("./output/part2/2-1/frequency_analysis2.png")
 
 def part2_1():
     input_path = "./data/taj.jpg"
     in_path = "./output/part2/2-1/input.png"
+    blur_path = "./output/part2/2-1/blur.png"
     sharpen_path = "./output/part2/2-1/sharpen.png"
+    unsharp_mask_path = "./output/part2/2-1/unsharp_mask.png"
     detail_path = "./output/part2/2-1/detail.png"
 
     img = cv2.imread(input_path)
+    img_blur = gaussian_filter(img, color=True)
     img_sharpened, img_detail = sharpening(img)
+    img_unsharp_mask = unsharp_masking(img)
+
+    # Frequency Analysis
+    frequency_analysis(img, img_blur, img_detail, img_sharpened)
+
+    fig, ax = plt.subplots(1, 3, figsize=(10, 4))
+    ax[0].imshow(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
+    ax[0].set_title("Original Image")
+    ax[0].axis("off")
+    ax[1].imshow(cv2.cvtColor(img_sharpened.astype(np.uint8), cv2.COLOR_BGR2RGB))
+    ax[1].set_title("Sharpened")
+    ax[1].axis("off")
+    ax[2].imshow(cv2.cvtColor(img_unsharp_mask.astype(np.uint8), cv2.COLOR_BGR2RGB))
+    ax[2].set_title("Unsharp Mask Filter")
+    ax[2].axis("off")
+    fig.tight_layout()
+    plt.savefig("./output/part2/2-1/compare.png")
 
     cv2.imwrite(in_path, img)
+    cv2.imwrite(blur_path, img_blur)
     cv2.imwrite(detail_path, img_detail)
     cv2.imwrite(sharpen_path, img_sharpened)
+    cv2.imwrite(unsharp_mask_path, img_unsharp_mask)
 
 ### Part 2-2: Hybrid Images ###
 def highpass_filter(img, color=True):
@@ -134,7 +217,7 @@ def laplacian_stack(gaussian_stack, name):
     plt.savefig("./output/part2/2-3/laplacian_stack_" + name + ".png")
     return stack
 
-### Part 2-4: Image Blending ###
+### Part 2-4: Multiresolution Blending ###
 def image_blending(img1_stack, img2_stack, mask_stack):
     blended_stack = []
     for i in range(LEVELS+1):
@@ -178,6 +261,6 @@ def part2_4():
 
 
 if __name__ == "__main__":
-    # part2_1()
+    part2_1()
     # part2_2()
-    part2_4()
+    # part2_4()
