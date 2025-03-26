@@ -286,6 +286,10 @@ def parse_args():
                       help='comma-separated list of model paths to use for ensemble')
     parser.add_argument('--ensemble-name', type=str, default=None,
                       help='name for the ensemble submission file')
+
+    # Test related arguments
+    parser.add_argument('--test', action='store_true',
+                      help='test the model')
     
     return parser.parse_args()
 
@@ -314,6 +318,10 @@ if __name__ == "__main__":
             print(f"Using {args.folds}-fold cross-validation")
             model = cross_validation(args)
             ensemble_models(args)
+        elif args.test:
+            print("Testing the model")
+            model, _exp_name = get_model(args.model)
+            test(args, model, _exp_name)
         else:
             print("Using standard train/validation split")
             train(args)
