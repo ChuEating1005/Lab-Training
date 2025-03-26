@@ -187,7 +187,7 @@ def train(args):
     train_writer.close()
     valid_writer.close()
 
-def test(args=None, model=None, _exp_name=None):
+def test(args=None):
     """
     Test the model on the test dataset
     
@@ -197,7 +197,7 @@ def test(args=None, model=None, _exp_name=None):
         _exp_name: Experiment name (if None, use args.model)
     """
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    
+
     # If args are not provided, use global variables
     if args is None:
         batch_size = globals().get('batch_size', 64)
@@ -205,24 +205,13 @@ def test(args=None, model=None, _exp_name=None):
         batch_size = args.batch_size
     
     # If model and experiment name are not provided, load them
-    if model is None or _exp_name is None:
-        if args is not None:
-            model, _exp_name = get_model(args.model)
-        else:
-            # Try to use global variables
-            if 'model' not in globals() or 'exp_name' not in globals():
-                raise ValueError("Model and experiment name must be provided")
-            model = globals()['model']
-            _exp_name = globals()['_exp_name']
-            
-        model = model.to(device)
-        model.load_state_dict(torch.load(f"models/{_exp_name}_best.ckpt"))
-    
+    model, _exp_name = get_model(args.model)
+    model = model.to(device)
     model.eval()
-
+    
     # Load test data
     test_set = FoodDataset("./data/test", tfm=test_tfm)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=3, pin_memory=True)
 
     # Make predictions
     prediction = []
@@ -320,11 +309,8 @@ if __name__ == "__main__":
             ensemble_models(args)
         elif args.test:
             print("Testing the model")
-            model, _exp_name = get_model(args.model)
-            test(args, model, _exp_name)
+            test(args)
         else:
             print("Using standard train/validation split")
             train(args)
-            # Need to create the model for testing
-            model, _exp_name = get_model(args.model)
-            test(args, model, _exp_name)
+            test(args)
