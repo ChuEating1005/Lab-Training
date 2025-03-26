@@ -36,4 +36,4 @@ tensorboard --logdir=runs/
 | Default (Original-CNN) | 0.72266 | 0.72600 | - |
 | EfficientNet-b0 | 0.7561 | - | 5.3M |
 | ResNet18 | 0.7371 | - | 11.7M |
-| ResNet50 | 0.7065 | - | 25.6M |
+| MobileNet-v2 | 0.8065 | - | 3.4M |
